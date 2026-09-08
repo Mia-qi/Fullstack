@@ -1,25 +1,57 @@
-import Vue from 'vue'
-import VueRouter from 'vue-router'
-
-// 引入你的页面，先建一个简单测试页面 views/home/index.vue
+import { createRouter, createWebHashHistory } from 'vue-router'
 import Home from '@/views/home/index.vue'
-
-// 注册路由插件
-Vue.use(VueRouter)
 
 const routes = [
   {
-    path: '/home',
-    component: Home
-  },
-  {
     path: '/',
     redirect: '/home'
+  },
+  {
+    path: '/home',
+    name: 'Home',
+    component: Home,
+    meta: { title: '首页' }
+  },
+  {
+    path: '/assetManagement/assetRegistration',
+    name: 'AssetRegistration',
+    component: () => import('@/views/businessA/index.vue'),
+    meta: { title: '资产登记' }
+  },
+  {
+    path: '/assetManagement/assetReform',
+    name: 'AssetReform',
+    component: () => import('@/views/businessA/index.vue'),
+    meta: { title: '资产改造' }
+  },
+  {
+    path: '/assetManagement/assetTransfer',
+    name: 'AssetTransfer',
+    component: () => import('@/views/businessA/index.vue'),
+    meta: { title: '资产转让' }
+  },
+  {
+    path: '/assetManagement/assetScrap',
+    name: 'AssetScrap',
+    component: () => import('@/views/businessA/index.vue'),
+    meta: { title: '资产报废' }
+  },
+  {
+    path: '/assetManagement/assetWriteoff',
+    name: 'AssetWriteoff',
+    component: () => import('@/views/businessA/index.vue'),
+    meta: { title: '资产报损' }
+  },
+  {
+    path: '/assetManagement/assetDisposal',
+    name: 'AssetDisposal',
+    component: () => import('@/views/businessA/index.vue'),
+    meta: { title: '资产处置' }
   }
 ]
 
-const router = new VueRouter({
-  mode: 'hash',
+const router = createRouter({
+  history: createWebHashHistory(),
   routes
 })
 

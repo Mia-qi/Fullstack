@@ -1,15 +1,18 @@
 <template>
-  <div class="mobile-asset-page">
-    <!-- 顶部导航 -->
-    <van-nav-bar :title="pageTitle" left-arrow @click-left="goBack" />
+  <div class="pc-asset-page">
+    <!-- 页面标题 -->
+    <div class="page-header">
+      <h2>{{ pageTitle }}</h2>
+      <el-button @click="goBack">返回</el-button>
+    </div>
 
     <div class="page-content">
-      <!-- Tab页签：对应PC三个tab：基本信息｜其他费用明细｜附件 -->
-      <van-tabs v-model="activeTab">
-        <van-tab title="基本信息">
-          <van-collapse v-model="activeCollapseKeys">
+      <!-- Tab页签：对应三个tab：基本信息｜其他费用明细｜附件 -->
+      <el-tabs v-model="activeTab">
+        <el-tab-pane label="基本信息" name="0">
+          <el-collapse v-model="activeCollapseKeys">
             <!-- 基础信息折叠面板 -->
-            <van-collapse-item title="基础信息" name="base">
+            <el-collapse-item title="基础信息" name="base">
               <!-- 动态渲染表单 -->
               <div class="form-item-wrap" v-for="item in formItemList" :key="item.value">
                 <div class="label-row">
@@ -24,41 +27,42 @@
 
                 <!-- 编辑模式 -->
                 <div v-else>
-                  <!-- 选择器示例 -->
-                  <van-select
+                  <!-- 选择器 -->
+                  <el-select
                     v-if="item.value === 'thirdUnit'"
                     v-model="formData[item.value]"
-                    :options="thirdUnitList"
                     placeholder="请选择"
                     @change="thirdUnitChange"
-                  />
+                  >
+                    <el-option v-for="opt in thirdUnitList" :key="opt.value" :label="opt.label" :value="opt.value" />
+                  </el-select>
                   <!-- 输入框 -->
-                  <van-field
+                  <el-input
                     v-else-if="item.type === 'string'"
                     v-model="formData[item.value]"
                     :placeholder="item.placeholder || '请输入' + item.label"
                   />
                   <!-- 数字输入 -->
-                  <van-field
+                  <el-input-number
                     v-else-if="item.type === 'number'"
-                    v-model.number="formData[item.value]"
-                    type="digit"
+                    v-model="formData[item.value]"
                     :placeholder="item.placeholder || '请输入'"
+                    controls-position="right"
                   />
                   <!-- 日期 -->
-                  <van-field
+                  <el-date-picker
                     v-else-if="item.type === 'date'"
-                    readonly
-                    :value="formData[item.value]"
+                    v-model="formData[item.value]"
+                    type="date"
                     placeholder="请选择日期"
-                    @click="showDatePopup(item.value)"
+                    value-format="YYYY-MM-DD"
                   />
                 </div>
               </div>
-            </van-collapse-item>
+            </el-collapse-item>
 
             <!-- 资产详情折叠面板 -->
-            <van-collapse-item title="资产详情" name="asset">
+            <el-collapse-item title="资产详情" name="asset">
               <div class="form-item-wrap" v-for="item in assetDetailItemList" :key="item.value">
                 <div class="label-row">
                   <span class="red-star" v-if="item.rules">*</span>
@@ -69,253 +73,254 @@
                   <span v-if="item.unit"> {{ item.unit }}</span>
                 </div>
                 <div v-else>
-                  <van-field
+                  <el-input-number
+                    v-if="item.type === 'number'"
                     v-model="formData[item.value]"
                     :placeholder="item.placeholder || '请输入'"
-                    :type="item.type === 'number' ? 'digit' : 'text'"
+                    controls-position="right"
                   />
+                  <el-date-picker
+                    v-else-if="item.type === 'date'"
+                    v-model="formData[item.value]"
+                    type="date"
+                    placeholder="请选择日期"
+                    value-format="YYYY-MM-DD"
+                  />
+                  <el-input v-else v-model="formData[item.value]" :placeholder="item.placeholder || '请输入'" />
                 </div>
               </div>
-            </van-collapse-item>
+            </el-collapse-item>
 
             <!-- 备注 -->
-            <van-collapse-item title="备注" name="remark">
-              <van-field
+            <el-collapse-item title="备注" name="remark">
+              <el-input
                 v-model="formData.remark"
                 type="textarea"
-                rows="3"
+                :rows="3"
                 placeholder="请输入备注信息"
                 :readonly="clickType === 'look'"
               />
-            </van-collapse-item>
-          </van-collapse>
-        </van-tab>
+            </el-collapse-item>
+          </el-collapse>
+        </el-tab-pane>
 
         <!-- Tab2：其他费用明细（子表） -->
-        <van-tab title="其他费用明细">
+        <el-tab-pane label="其他费用明细" name="1">
           <div class="table-tool-bar">
-            <van-button v-if="clickType !== 'look'" size="small" type="primary" icon="plus" @click="addTableRow"
-              >新增行</van-button
-            >
+            <el-button v-if="clickType !== 'look'" type="primary" icon="Plus" @click="addTableRow">新增行</el-button>
           </div>
 
-          <!-- 移动端列表代替表格 -->
-          <div class="sub-table-wrap">
-            <div class="table-card" v-for="(row, idx) in tableData" :key="row.itemKey">
-              <div class="card-row">
-                <span class="k">费用名称</span>
-                <van-field v-model="row.expenseName" placeholder="费用名称" :readonly="clickType === 'look'" />
-              </div>
-              <div class="card-row">
-                <span class="k">数量</span>
-                <van-field
-                  v-model.number="row.quantity"
-                  type="digit"
+          <!-- PC端表格 -->
+          <el-table :data="tableData" border stripe style="width: 100%">
+            <el-table-column prop="expenseName" label="费用名称">
+              <template #default="{ row }">
+                <el-input v-model="row.expenseName" placeholder="费用名称" :readonly="clickType === 'look'" />
+              </template>
+            </el-table-column>
+            <el-table-column prop="quantity" label="数量" width="120">
+              <template #default="{ row }">
+                <el-input-number
+                  v-model="row.quantity"
                   placeholder="数量"
                   :readonly="clickType === 'look'"
+                  controls-position="right"
                 />
-              </div>
-              <div class="card-row">
-                <span class="k">含税单价(元)</span>
-                <van-field
-                  v-model.number="row.unitPriceIncludeTax"
-                  type="digit"
+              </template>
+            </el-table-column>
+            <el-table-column prop="unitPriceIncludeTax" label="含税单价(元)" width="140">
+              <template #default="{ row }">
+                <el-input-number
+                  v-model="row.unitPriceIncludeTax"
                   placeholder="含税单价"
                   :readonly="clickType === 'look'"
+                  controls-position="right"
                 />
-              </div>
-              <div class="card-row">
-                <span class="k">不含税单价(元)</span>
-                <van-field
-                  v-model.number="row.unitPriceExcludeTax"
-                  type="digit"
+              </template>
+            </el-table-column>
+            <el-table-column prop="unitPriceExcludeTax" label="不含税单价(元)" width="150">
+              <template #default="{ row }">
+                <el-input-number
+                  v-model="row.unitPriceExcludeTax"
                   placeholder="不含税单价"
                   :readonly="clickType === 'look'"
+                  controls-position="right"
                 />
-              </div>
-              <div class="card-row">
-                <span class="k">税率(%)</span>
-                <van-field
-                  v-model.number="row.taxRate"
-                  type="digit"
+              </template>
+            </el-table-column>
+            <el-table-column prop="taxRate" label="税率(%)" width="120">
+              <template #default="{ row }">
+                <el-input-number
+                  v-model="row.taxRate"
                   placeholder="税率"
                   :readonly="clickType === 'look'"
+                  controls-position="right"
                 />
-              </div>
-              <div class="card-row">
-                <span class="k">不含税金额</span>
-                <span>{{ row.amountExcludeTax || 0 }}</span>
-              </div>
-              <van-button
-                v-if="clickType !== 'look'"
-                type="danger"
-                size="mini"
-                icon="delete"
-                @click="deleteTableRow(idx)"
-                >删除</van-button
-              >
-            </div>
-          </div>
-        </van-tab>
+              </template>
+            </el-table-column>
+            <el-table-column prop="amountExcludeTax" label="不含税金额" width="130">
+              <template #default="{ row }">
+                {{ row.amountExcludeTax || 0 }}
+              </template>
+            </el-table-column>
+            <el-table-column v-if="clickType !== 'look'" label="操作" width="100" fixed="right">
+              <template #default="{ $index }">
+                <el-button type="danger" link icon="Delete" @click="deleteTableRow($index)">删除</el-button>
+              </template>
+            </el-table-column>
+          </el-table>
+        </el-tab-pane>
 
         <!-- Tab3：附件 -->
-        <van-tab title="附件">
-          <van-uploader v-model="fileData" :disabled="clickType === 'look'" multiple accept="*" />
-        </van-tab>
-      </van-tabs>
+        <el-tab-pane label="附件" name="2">
+          <el-upload
+            v-model:file-list="fileData"
+            action="#"
+            :disabled="clickType === 'look'"
+            multiple
+            :auto-upload="false"
+          >
+            <el-button type="primary">选择文件</el-button>
+          </el-upload>
+        </el-tab-pane>
+      </el-tabs>
     </div>
 
     <!-- 底部操作按钮 -->
     <div class="footer-btn-bar" v-if="clickType !== 'look'">
-      <van-button block type="primary" @click="handleSave">保存</van-button>
+      <el-button type="primary" @click="handleSave" style="width: 100%">保存</el-button>
     </div>
-
-    <!-- 日期选择弹窗 -->
-    <van-popup v-model="dateShow" position="bottom">
-      <van-datetime-picker
-        v-model="currentSelectDate"
-        type="date"
-        @confirm="onDateConfirm"
-        @cancel="dateShow = false"
-      />
-    </van-popup>
   </div>
 </template>
 
-<script>
-export default {
-  name: 'MobileAssetRegister',
-  data() {
-    return {
-      pageTitle: '资产登记',
-      clickType: 'add', // add / edit / look
-      activeTab: 0,
-      activeCollapseKeys: ['base', 'asset', 'remark'],
-      dateShow: false,
-      currentSelectDate: '',
-      currentDateField: '',
+<script setup>
+import { ref, reactive, onMounted } from 'vue'
+import { useRouter, useRoute } from 'vue-router'
+import { ElMessage } from 'element-plus'
 
-      formData: {
-        documentName: '',
-        thirdUnit: '',
-        managementCode: '',
-        model: '',
-        assetRegistrationDate: '',
-        startUsingDate: '',
-        purchaseOriginalValue: '',
-        originalValue: '',
-        residualValue: '',
-        residualValueRate: '',
-        remark: ''
-      },
-      // 对应PC端formItemList配置，直接复用配置思想
-      formItemList: [
-        {
-          label: '单据名称',
-          value: 'documentName',
-          type: 'string',
-          rules: [{ required: true, message: '请输入单据名称' }]
-        },
-        { label: '所属三级单位', value: 'thirdUnit', type: 'select' },
-        { label: '管理编号', value: 'managementCode', type: 'string' },
-        { label: '型号', value: 'model', type: 'string' }
-      ],
-      assetDetailItemList: [
-        {
-          label: '资产登记日期',
-          value: 'assetRegistrationDate',
-          type: 'date',
-          rules: [{ required: true, message: '请选择资产登记日期' }]
-        },
-        { label: '启用日期', value: 'startUsingDate', type: 'date' },
-        { label: '购置原值', value: 'purchaseOriginalValue', type: 'number', unit: '元' },
-        { label: '组资原值', value: 'originalValue', type: 'number', unit: '元' },
-        { label: '残值', value: 'residualValue', type: 'number', unit: '元' },
-        { label: '残值率', value: 'residualValueRate', type: 'number', unit: '%' }
-      ],
-      thirdUnitList: [],
-      // 子表 其他费用明细
-      tableData: [],
-      fileData: []
-    }
+const router = useRouter()
+const route = useRoute()
+
+const pageTitle = ref('资产登记')
+const clickType = ref('add')
+const activeTab = ref('0')
+const activeCollapseKeys = ref(['base', 'asset', 'remark'])
+
+const formData = reactive({
+  documentName: '',
+  thirdUnit: '',
+  managementCode: '',
+  model: '',
+  assetRegistrationDate: '',
+  startUsingDate: '',
+  purchaseOriginalValue: '',
+  originalValue: '',
+  residualValue: '',
+  residualValueRate: '',
+  remark: ''
+})
+
+const formItemList = [
+  {
+    label: '单据名称',
+    value: 'documentName',
+    type: 'string',
+    rules: [{ required: true, message: '请输入单据名称' }]
   },
-  mounted() {
-    // 模拟路由获取页面模式
-    const query = this.$route.query
-    if (query.type) {
-      this.clickType = query.type
-    }
-    if (this.clickType === 'look') {
-      this.pageTitle = '资产登记-查看'
-    } else if (this.clickType === 'edit') {
-      this.pageTitle = '资产登记-编辑'
-    }
-    // 如果有id，调用getDetail 拉取详情，同PC逻辑
-    if (query.id) {
-      this.getDetail(query.id)
-    }
+  { label: '所属三级单位', value: 'thirdUnit', type: 'select' },
+  { label: '管理编号', value: 'managementCode', type: 'string' },
+  { label: '型号', value: 'model', type: 'string' }
+]
+
+const assetDetailItemList = [
+  {
+    label: '资产登记日期',
+    value: 'assetRegistrationDate',
+    type: 'date',
+    rules: [{ required: true, message: '请选择资产登记日期' }]
   },
-  methods: {
-    goBack() {
-      this.$router.back()
-    },
-    showDatePopup(field) {
-      this.currentDateField = field
-      this.currentSelectDate = this.formData[field] || new Date()
-      this.dateShow = true
-    },
-    onDateConfirm(val) {
-      this.formData[this.currentDateField] = this.$moment(val).format('YYYY‑MM‑DD')
-      this.dateShow = false
-    },
-    thirdUnitChange() {
-      // 业务逻辑同PC
-    },
-    // 获取详情，和PC业务逻辑保持一致
-    async getDetail(id) {
-      // const res = await getAssetListById(id)
-      // Object.keys(res.data).forEach(key=> this.$set(this.formData, key, res.data[key]))
-      // this.tableData = res.data.otherFreeDtoList
-      // this.fileData = res.data.attachment
-    },
-    // 子表操作
-    addTableRow() {
-      this.tableData.push({
-        itemKey: Math.random().toString(36),
-        expenseName: '',
-        quantity: null,
-        unitPriceIncludeTax: null,
-        unitPriceExcludeTax: null,
-        taxRate: null,
-        amountExcludeTax: 0
-      })
-    },
-    deleteTableRow(index) {
-      this.tableData.splice(index, 1)
-    },
-    // 保存，和PC handleSave逻辑对齐
-    handleSave() {
-      // 1.表单校验
-      // 2.组装参数 formData + tableData + fileData
-      // 3.调用新增/编辑接口
-      this.$toast.success('保存成功')
-      this.goBack()
-    }
+  { label: '启用日期', value: 'startUsingDate', type: 'date' },
+  { label: '购置原值', value: 'purchaseOriginalValue', type: 'number', unit: '元' },
+  { label: '组资原值', value: 'originalValue', type: 'number', unit: '元' },
+  { label: '残值', value: 'residualValue', type: 'number', unit: '元' },
+  { label: '残值率', value: 'residualValueRate', type: 'number', unit: '%' }
+]
+
+const thirdUnitList = ref([])
+const tableData = ref([])
+const fileData = ref([])
+
+onMounted(() => {
+  const query = route.query
+  if (query.type) {
+    clickType.value = query.type
   }
+  if (clickType.value === 'look') {
+    pageTitle.value = '资产登记-查看'
+  } else if (clickType.value === 'edit') {
+    pageTitle.value = '资产登记-编辑'
+  }
+  if (query.id) {
+    getDetail(query.id)
+  }
+})
+
+function goBack() {
+  router.back()
+}
+
+function thirdUnitChange() {}
+
+async function getDetail(id) {}
+
+function addTableRow() {
+  tableData.value.push({
+    itemKey: Math.random().toString(36),
+    expenseName: '',
+    quantity: null,
+    unitPriceIncludeTax: null,
+    unitPriceExcludeTax: null,
+    taxRate: null,
+    amountExcludeTax: 0
+  })
+}
+
+function deleteTableRow(index) {
+  tableData.value.splice(index, 1)
+}
+
+function handleSave() {
+  ElMessage.success('保存成功')
+  goBack()
 }
 </script>
 
 <style lang="less" scoped>
-.mobile-asset-page {
+.pc-asset-page {
   height: 100vh;
   display: flex;
   flex-direction: column;
   background-color: #f7f8fa;
 }
+.page-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 16px 24px;
+  background: #fff;
+  border-bottom: 1px solid #eee;
+  h2 {
+    margin: 0;
+    font-size: 18px;
+    font-weight: 600;
+  }
+}
 .page-content {
   flex: 1;
   overflow-y: auto;
-  padding-bottom: 80px;
+  padding: 20px 24px 80px;
+  background: #fff;
+  margin: 16px;
+  border-radius: 8px;
 }
 .form-item-wrap {
   padding: 12px 16px;
@@ -337,34 +342,17 @@ export default {
   }
 }
 .table-tool-bar {
-  padding: 12px 16px;
+  padding: 12px 0;
   background: #fff;
-}
-.sub-table-wrap {
-  padding: 0 12px;
-}
-.table-card {
-  background: #fff;
-  border-radius: 8px;
-  padding: 12px;
-  margin: 8px 0;
-  .card-row {
-    display: flex;
-    align-items: center;
-    margin: 6px 0;
-    .k {
-      width: 110px;
-      font-size: 13px;
-      color: #666;
-    }
-  }
+  margin-bottom: 12px;
 }
 .footer-btn-bar {
   position: fixed;
   bottom: 0;
   left: 0;
   right: 0;
-  padding: 12px 16px;
+  padding: 12px 24px;
   background: #fff;
+  box-shadow: 0 -2px 8px rgba(0, 0, 0, 0.08);
 }
 </style>

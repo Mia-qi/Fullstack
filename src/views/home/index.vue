@@ -1,966 +1,596 @@
-<!-- <template>
-  <div class="home-page">
-    <h2>移动端首页</h2>
-  </div>
-</template>
-<script>
-export default {
-  name: 'PageHome'
-}
-</script> -->
 <template>
   <!-- 资产管理-资产管理列表 -->
-  <div>
+  <div class="asset-management-page">
     <div v-if="!isShowEditDetail">
       <!-- 表格查询区域 -->
-      <TableFiltering
-        :formItemList="formItemList"
-        :pageTitle="pageTitle"
-        :defaultFormItemList="defaultFormItemList"
-        :mineralProjectBidDto="queryForm"
-        @searchTable="searchTable"
-        @resetTable="resetTable"
-        @upOrDownMore="upOrDownMore"
-      ></TableFiltering>
-      <!-- 表格查询结束 -->
+      <el-card class="table-search-form" shadow="never">
+        <el-form :model="queryForm" ref="ruleForm" :inline="true" label-width="100px">
+          <el-row :gutter="16">
+            <el-col :span="6">
+              <el-form-item label="选择机构" prop="organId">
+                <el-input v-model="queryForm.organId" placeholder="请选择机构" @change="handleOrganChange" />
+              </el-form-item>
+            </el-col>
+            <el-col :span="6">
+              <el-form-item label="单据编号" prop="documentCode">
+                <el-input v-model="queryForm.documentCode" placeholder="请输入单据编号" clearable />
+              </el-form-item>
+            </el-col>
+            <el-col :span="12" style="text-align: right">
+              <el-button @click="resetTable">重置</el-button>
+              <el-button type="primary" @click="searchTable">搜索</el-button>
+              <el-link
+                type="primary"
+                :underline="false"
+                @click="isShowMoreSearch = !isShowMoreSearch"
+                class="more-search-btn"
+              >
+                高级搜索
+                <el-icon v-if="!isShowMoreSearch"><ArrowDown /></el-icon>
+                <el-icon v-else><ArrowUp /></el-icon>
+              </el-link>
+            </el-col>
+          </el-row>
+
+          <!-- 高级搜索区域 -->
+          <div v-show="isShowMoreSearch && formItemList.length > 0" class="more-search-area">
+            <el-row :gutter="16">
+              <el-col :span="6" v-for="item in formItemList" :key="item.value">
+                <el-form-item :label="item.label" :prop="item.value">
+                  <el-input
+                    v-if="item.type === 'string'"
+                    v-model="queryForm[item.value]"
+                    :placeholder="'请输入' + item.label"
+                    clearable
+                  />
+                  <el-select
+                    v-else-if="item.type === 'dict-select'"
+                    v-model="queryForm[item.value]"
+                    :placeholder="'请选择' + item.label"
+                    clearable
+                  >
+                    <el-option
+                      v-for="opt in getDictOptions(item.dict)"
+                      :key="opt.value"
+                      :label="opt.label"
+                      :value="opt.value"
+                    />
+                  </el-select>
+                  <el-date-picker
+                    v-else-if="item.type === 'dateRangeForDate'"
+                    v-model="queryForm[item.value]"
+                    type="daterange"
+                    range-separator="至"
+                    start-placeholder="开始日期"
+                    end-placeholder="结束日期"
+                    value-format="YYYY-MM-DD"
+                  />
+                </el-form-item>
+              </el-col>
+            </el-row>
+          </div>
+        </el-form>
+      </el-card>
+
       <!-- 表格区域 -->
-      <crec-card size="small" class="table-block">
-        <template slot="extra">
-          <crec-button class="marginRight10" icon="download" @click="handleExport">导出</crec-button>
-          <crec-button
-            v-action:batchDeleteAction
-            class="marginRight10"
-            icon="delete"
-            @click="handleDelete"
-            type="danger"
-            ghost
-            >删除</crec-button
-          >
-          <crec-dropdown>
-            <crec-button v-action:addAction class="marginRight10" icon="plus-circle" type="primary">
-              新增<crec-icon type="down" />
-            </crec-button>
-
-            <crec-menu slot="overlay" @click="handleAddMenuClick">
-              <crec-menu-item v-for="item in addMenuList" :key="item.value">
-                {{ item.label }}
-              </crec-menu-item>
-            </crec-menu>
-          </crec-dropdown>
-
-          <!-- <crec-button class="marginRight10" icon="plus-circle" @click="handleAdd" type="primary">新增</crec-button> -->
+      <el-card class="table-block" shadow="never">
+        <template #header>
+          <div class="table-header">
+            <div class="table-title">{{ pageTitle }}</div>
+            <div class="table-actions">
+              <el-button icon="Download" @click="handleExport">导出</el-button>
+              <el-button icon="Delete" type="danger" plain @click="handleDelete">删除</el-button>
+              <el-dropdown @command="handleAddMenuClick">
+                <el-button type="primary" icon="Plus">
+                  新增<el-icon class="el-icon--right"><ArrowDown /></el-icon>
+                </el-button>
+                <template #dropdown>
+                  <el-dropdown-menu>
+                    <el-dropdown-item v-for="item in addMenuList" :key="item.value" :command="item.value">
+                      {{ item.label }}
+                    </el-dropdown-item>
+                  </el-dropdown-menu>
+                </template>
+              </el-dropdown>
+            </div>
+          </div>
         </template>
-        <!-- :childrenColumnName="historyDtoList"
-            // 确保展开行能正确读取子数据
-            childrenColumnName: 'historyDtoList'-->
-        <cb-table
-          ref="table"
-          size="middle"
-          :alert="true"
-          :columns="tableColumns"
-          :rowKey="(record) => record.id"
-          :data="tableData"
-          :showPagination="true"
-          :pageSizeOptions="['10', '20', '30', '50', '100', '200']"
-          :isDraggerTable="true"
-          @colunm-width-change="colunmWidthChange"
-          :customColumns="customColumns"
-          @onCustomColChange="onCustomColChange"
-          :rowSelection="rowSelection"
-          @expand="handleExpand"
-          :expanded-row-keys.sync="expandedRowKeys"
-          :expand-icon-column-index="2"
-          :expandable="{
-            // 允许展开行
-            expandRowByClick: true
-          }"
-          :defaultLoad="true"
-          :scroll="{ x: 1000 }"
-          :style="{ height: tableHeight + 'px' }"
-          :spaceBetween="true"
-          :insideScroll="true"
+
+        <!-- Element Plus 表格 -->
+        <el-table
+          ref="tableRef"
+          :data="tableDataList"
+          border
+          stripe
+          :height="tableHeight"
+          @selection-change="handleSelectionChange"
+          @row-click="handleRowClick"
+          v-loading="tableLoading"
         >
-          <!-- 自定义展开图标 #expandIcon="props" -->
-          <template slot="expandIcon" slot-scope="props">
-            <span v-if="props.record.isMultiple === true">
-              <div
-                v-if="props.expanded"
-                @click="props.onExpand(props.record, $event)"
-                style="display: inline-block; margin-left: auto; margin-right: 6px"
+          <el-table-column type="selection" width="50" align="center" fixed />
+          <el-table-column type="index" label="序号" width="70" align="center" fixed />
+
+          <el-table-column prop="documentCode" label="单据编号" width="280" show-overflow-tooltip>
+            <template #default="{ row }">
+              <el-tooltip :content="row.documentCode" placement="top">
+                <span>{{ row.documentCode }}</span>
+              </el-tooltip>
+            </template>
+          </el-table-column>
+
+          <el-table-column prop="documentName" label="单据名称" width="220" show-overflow-tooltip>
+            <template #default="{ row }">
+              <el-tooltip :content="row.documentName" placement="top">
+                <el-link type="primary" @click="handleNameClick(row)">{{ row.documentName }}</el-link>
+              </el-tooltip>
+            </template>
+          </el-table-column>
+
+          <el-table-column prop="businessName" label="业务类型" width="150" show-overflow-tooltip>
+            <template #default="{ row }">
+              <el-tooltip :content="row.businessName" placement="top">
+                <span>{{ row.businessName }}</span>
+              </el-tooltip>
+            </template>
+          </el-table-column>
+
+          <el-table-column prop="approvalStatus" label="状态" width="120" show-overflow-tooltip>
+            <template #default="{ row }">
+              <span v-if="row.approvalStatus == null || row.approvalStatus == '0'">待提交</span>
+              <span v-else v-for="item in approveStatusList" :key="item.value">
+                <span v-if="row.approvalStatus === item.value">{{ item.label }}</span>
+              </span>
+            </template>
+          </el-table-column>
+
+          <el-table-column prop="createByName" label="编制人" width="120" show-overflow-tooltip>
+            <template #default="{ row }">
+              <el-tooltip :content="row.createByName" placement="top">
+                <span>{{ row.createByName }}</span>
+              </el-tooltip>
+            </template>
+          </el-table-column>
+
+          <el-table-column prop="createTime" label="编制日期" width="160" show-overflow-tooltip>
+            <template #default="{ row }">
+              <el-tooltip :content="row.createTime" placement="top">
+                <span>{{ row.createTime ? conversionTime(row.createTime) : '' }}</span>
+              </el-tooltip>
+            </template>
+          </el-table-column>
+
+          <el-table-column prop="organ" label="编制机构" width="250" show-overflow-tooltip>
+            <template #default="{ row }">
+              <el-tooltip :content="row.organ" placement="top">
+                <span>{{ row.organ }}</span>
+              </el-tooltip>
+            </template>
+          </el-table-column>
+
+          <el-table-column label="操作" width="150" fixed="right" align="center">
+            <template #default="{ row }">
+              <el-button
+                v-if="row.approvalStatus == null || row.approvalStatus == '0' || row.approvalStatus == '1'"
+                link
+                type="primary"
+                @click.stop="toDetail('edit', row)"
+                >编辑</el-button
               >
-                <crec-icon type="caret-down" />
-              </div>
-              <div
-                v-else
-                @click="props.onExpand(props.record, $event)"
-                style="display: inline-block; margin-left: auto; margin-right: 6px"
+              <el-button v-if="row.approvalStatus === '1'" link type="danger" @click.stop="handleDelete(row)"
+                >删除</el-button
               >
-                <crec-icon type="caret-right" />
-              </div>
-            </span>
+            </template>
+          </el-table-column>
+        </el-table>
 
-            <span v-else style="margin-left: auto; padding-left: 20px"></span>
-          </template>
-          <template slot="documentCode" slot-scope="text">
-            <crec-tooltip placement="topLeft" :title="text">
-              <span>{{ text }}</span>
-            </crec-tooltip>
-          </template>
-          <template slot="approvalStatus" slot-scope="text">
-            <span v-if="text == null || text == '0'">待提交</span>
-            <span v-else v-for="item in approveStatusList" :key="item.value">
-              <span v-if="text === item.value">{{ item.label }}</span>
-            </span>
-          </template>
-          <template slot="documentName" slot-scope="text, record">
-            <crec-tooltip placement="topLeft" :title="text">
-              <a class="tablelinkStyle" @click="handleNameClick(record)">{{ text }}</a>
-            </crec-tooltip>
-          </template>
-          <template slot="businessName" slot-scope="text">
-            <crec-tooltip placement="topLeft" :title="text">
-              <span>{{ text }}</span>
-            </crec-tooltip>
-          </template>
-
-          <template slot="createByName" slot-scope="text">
-            <crec-tooltip placement="topLeft" :title="text">
-              <span>{{ text }}</span>
-            </crec-tooltip>
-          </template>
-
-          <template slot="createTime" slot-scope="text">
-            <crec-tooltip placement="topLeft" :title="text">
-              <span>{{ text }}</span>
-            </crec-tooltip>
-          </template>
-
-          <template slot="organ" slot-scope="text">
-            <crec-tooltip placement="topLeft" :title="text">
-              <span>{{ text }}</span>
-            </crec-tooltip>
-          </template>
-          <template slot="lastPrepareTime" slot-scope="text">
-            {{ text ? conversionTime(text) : undefined }}
-          </template>
-          <template #operation="text, record">
-            <a
-              class="option-btn"
-              v-action:editAction
-              v-if="record.approvalStatus == null || record.approvalStatus == '0' || record.approvalStatus == '1'"
-              @click="toDetail('edit', record)"
-              >编辑</a
-            >
-
-            <!-- <a class="option-btn" @click="toDetail('change', record)">变更</a> -->
-            <!-- <a class="option-btn" @click="viewApprovalRecords(record)">查看审批记录</a> -->
-            <a
-              v-action:deleteAction
-              class="option-btn option-delete-btn"
-              v-if="record.approvalStatus === '1'"
-              @click="handleDelete(record)"
-              >删除</a
-            >
-          </template>
-        </cb-table>
-      </crec-card>
+        <!-- 分页 -->
+        <div class="pagination-wrapper">
+          <el-pagination
+            :current-page="pagination.current"
+            :page-size="pagination.size"
+            :page-sizes="[10, 20, 30, 50, 100, 200]"
+            :total="pagination.total"
+            layout="total, sizes, prev, pager, next, jumper"
+            @size-change="handleSizeChange"
+            @current-change="handleCurrentChange"
+            @update:current-page="pagination.current = $event"
+            @update:page-size="pagination.size = $event"
+          />
+        </div>
+      </el-card>
     </div>
-    <EditDetail
-      :clickType="clickType"
-      v-if="isShowEditDetail"
-      :detailData="detailData"
-      @editDetailBack="editDetailBack"
-    ></EditDetail>
   </div>
 </template>
 
 <script>
+/* eslint-disable vue/multi-word-component-names */
+import { ref, reactive, onMounted, onBeforeUnmount } from 'vue'
+import { useRouter } from 'vue-router'
+import { ElMessage, ElMessageBox } from 'element-plus'
+import { ArrowDown, ArrowUp, Plus } from '@element-plus/icons-vue'
 import { debounce } from '@/utils/common'
-import { getListByDictType } from '@/api/basicProjectInfo/projectInfo'
 import {
   getassetManagementGetPage,
   assetManagementBatchDeleteValue,
   assetManagementExport
 } from '@/api/assetManagement/assetManagementList.js'
-import TableFiltering from '@/components/TableFiltering/index.vue'
-// import EditDetail from '@/views/assetManagement/assetManagementList/component/detail.vue'
-// import LookDetail from '@/views/assetManagement/assetDisposal/component/lookDetail.vue'
 import { conversionTime } from '@/utils/conversionTime'
-import { lookupDict } from '@/utils/system'
 
 export default {
-  name: 'AssetManagementList',
-  components: { TableFiltering },
-  data() {
-    return {
-      isFromListNameClick: false, // 标记是否是从列表页单据名称点击进入的
-      pageTitle: '资产管理',
-      addMenuList: [
-        {
-          label: '资产登记',
-          value: 'registration',
-          path: '/assetManagement/assetRegistration'
-        },
-        {
-          label: '资产改造',
-          value: 'reform',
-          path: '/assetManagement/assetReform'
-        },
-        {
-          label: '资产转让',
-          value: 'transfer',
-          // name: 'AssetTransfer' , // 使用路由名称
-          path: '/assetManagement/assetTransfer'
-        },
-        {
-          label: '资产报废',
-          value: 'scrap',
-          path: '/assetManagement/assetScrap'
-        },
-        {
-          label: '资产报损',
-          value: 'writeoff',
-          path: '/assetManagement/assetWriteoff'
-        },
-        {
-          label: '资产处置',
-          value: 'disposal',
-          path: '/assetManagement/assetDisposal'
-        }
-      ],
+  name: 'AssetManagementHomePage',
+  setup() {
+    const router = useRouter()
+    const tableRef = ref(null)
+    const ruleForm = ref(null)
+    const tableLoading = ref(false)
+    const isShowMoreSearch = ref(false)
+    const isShowEditDetail = ref(false)
+    const pageTitle = ref('资产管理')
 
-      queryForm: {
-        organId: window.localStorage.getItem('organId'),
-        projectName: undefined,
-        organFULLId: undefined,
-        orgForm: undefined,
-        id: null,
-        //业务类型
-        businessType: null,
-        //机构名称
-        organ: null,
-        //单据编号
-        documentCode: null,
-        //单据名称
-        documentName: null,
-        //审批状态
-        approvalStatus: '',
-        //经办人
-        // handlerId: null,
-        handlerName: null,
-        startCreateTime: null,
-        endCreateTime: null
-      },
-      defaultFormItemList: [
-        {
-          label: '选择机构',
-          value: 'organId',
-          type: 'org-tree-select',
-          disabled: false,
-          rootOrganId: window.localStorage.getItem('organId'),
-          showDefaultNode: true,
-          multiple: false,
-          allowClear: false,
-          methods: (params) => {
-            if (params && params !== '') {
-              this.queryForm.organId = params
-            } else {
-              this.queryForm.organId = window.localStorage.getItem('organId')
-            }
-            this.$refs.table.refresh(true)
-          }
-        },
-        {
-          label: '单据编号',
-          value: 'documentCode',
-          type: 'string',
-          methods: (params) => {
-            // 注意：此处要使用箭头函数，不然this指向会有问题
-            // 注意：此处事件为回车视角，回车之后需要自动调取表格查询事件
-            // this.$refs.table.refresh(true)
-          }
-        }
-      ],
-      formItemList: [
-        {
-          label: '单据名称',
-          value: 'documentName',
-          disabled: false, // 改为 false，允许用户手动输入
-          type: 'string',
-          rules: [
-            {
-              // required: true,
-              // message: '请输入单据名称',
-              trigger: ['change', 'blur']
-            }
-          ],
-          methods: (params) => {
-            //     // 注意：此处要使用箭头函数，不然this指向会有问题
-            //     // 注意：此处事件为回车视角，回车之后需要自动调取表格查询事件
-            // this.$refs.table.refresh(true)
-          }
-        },
-        {
-          label: '业务类型',
-          value: 'businessType',
-          disabled: false, // 改为 false，允许用户手动输入
-          type: 'dict-select',
-          dict: 'business_type',
-          rules: [
-            {
-              // required: true,
-              // message: '请输入业务类型',
-              trigger: ['change', 'blur']
-            }
-          ]
-        },
-        // {
-        //   label: '编制机构',
-        //   value: 'organName',
-        //   disabled: true,
-        //   type: 'string'
-        // },
-        // {
-        //   label: '报废申请单位',
-        //   value: 'applyUnitName',
-        //   disabled: true,
-        //   type: 'string'
-        // },
-        {
-          label: '状态',
-          value: 'approvalStatus',
-          type: 'dict-select',
-          dict: '	approve_status'
-        },
-        {
-          label: '编制日期',
-          value: 'createTime',
-          type: 'dateRangeForDate',
-          methods: (params) => {
-            //     // 注意：此处要使用箭头函数，不然this指向会有问题
-            //     // 注意：此处事件为回车视角，回车之后需要自动调取表格查询事件
-            // this.$refs.table.refresh(true)
-          }
-        }
-      ],
-      columns: [
-        // {
-        //   title: '序号',
-        //   dataIndex: 'index',
-        //   key: 'index',
-        //   width: 80,
-        //   align: 'center',
-        //   customRender: (value, row, index) => index + 1
-        // },
-        {
-          title: '单据编号',
-          width: 280,
-          dataIndex: 'documentCode',
-          key: 'documentCode',
-          ellipsis: true,
-          scopedSlots: { customRender: 'documentCode' }
-        },
-        {
-          title: '单据名称',
-          width: 220,
-          dataIndex: 'documentName',
-          key: 'documentName',
-          ellipsis: true,
-          scopedSlots: { customRender: 'documentName' }
-        },
-        {
-          title: '业务类型',
-          width: 150,
-          dataIndex: 'businessName',
-          key: 'businessName',
-          ellipsis: true,
-          scopedSlots: { customRender: 'businessName' }
-        },
-        {
-          title: '状态',
-          width: 120,
-          dataIndex: 'approvalStatus',
-          key: 'approvalStatus',
-          ellipsis: true,
-          scopedSlots: { customRender: 'approvalStatus' }
-        },
-        {
-          title: '编制人',
-          width: 120,
-          dataIndex: 'createByName',
-          key: 'createByName',
-          ellipsis: true,
-          scopedSlots: { customRender: 'businessName' }
-        },
-        {
-          title: '编制日期',
-          width: 160,
-          dataIndex: 'createTime',
-          key: 'createTime',
-          ellipsis: true,
-          scopedSlots: { customRender: 'createTime' }
-        },
-        {
-          title: '编制机构',
-          width: 250,
-          dataIndex: 'organ',
-          key: 'organ',
-          ellipsis: true,
-          scopedSlots: { customRender: 'organ' }
-        },
-        {
-          title: '操作',
-          width: 120,
-          fixed: 'right',
-          dataIndex: 'operation',
-          scopedSlots: { customRender: 'operation' }
-        }
-      ],
-      tableList: [],
-      // 表格数据
-      tableData: (parameter) => {
-        const requestParameters = Object.assign({}, parameter, this.queryForm)
-        if (
-          requestParameters.createTime &&
-          Array.isArray(requestParameters.createTime) &&
-          requestParameters.createTime.length > 0
-        ) {
-          requestParameters.startCreateTime = `${requestParameters.createTime[0]} 00:00:00`
-          requestParameters.endCreateTime = `${requestParameters.createTime[1]} 23:59:59`
-          delete requestParameters.createTime
-        }
-        return getassetManagementGetPage(requestParameters).then((res) => {
-          this.tableList = res.data.records
-          this.tableList.forEach((item) => {
-            this.$set(item, 'isParent', true)
-          })
-          return res.data
-        })
-      },
-      // 初始为空数组，表示默认没有展开的行
-
-      expandedRowKeys: [],
-      historyDtoList: 'historyDtoList',
-      tableHeight: document.body.offsetHeight - 255,
-      updateWidthColumns: this.columns,
-      selectedRowKeys: [], // 列表多选id组
-      selectedRows: [],
-      customColumns: {
-        open: true, // 开启自定义列
-        position: 'bottomRight',
-        theme: 'popover' // 目前仅支持此类型
-        // lockColumns: ['index', 'handle'] // 锁定列第二种方式
-      },
-      // 缓存父行索引，确保序号连续
-      parentIndexMap: new Map(),
-      approveStatusList: lookupDict('mec-approval-status'),
-      businessTypeList: lookupDict('business_type'),
-
-      // 子组件
-      clickType: 'add',
-      isShowEditDetail: false,
-      detailData: {},
-      rowData: {},
-      // 查看审批记录
-      // 是否显示审批记录弹框
-      showApprovalRecord: false,
-      rowApprovalTitle: '', // 下载审批记录文件名称
-      rowProcInstId: '', // 当前数据审批流程id
-      rowBusinessKey: '' // 当前数据审批流程业务key
-    }
-  },
-  computed: {
-    // 表格列 添加序号
-    tableColumns() {
-      // 1. 序号列配置
-      const indexColumn = {
-        title: '序号',
-        key: 'index',
-        width: 70,
-        align: 'center',
-        fixed: 'left', // 固定序号列，解决滚动错位
-        customRender: (text, record, index) => {
-          // const isParentRow = record.riskLevel === '1'
-          return index + 1
-          if (record.isParent) {
-            if (!this.parentIndexMap.has(record.businessPlanId)) {
-              this.parentIndexMap.set(record.businessPlanId, this.parentIndexMap.size + 1)
-            }
-            return this.parentIndexMap.get(record.businessPlanId)
-          } else {
-            return ''
-          }
-        }
-      }
-
-      // 2. 最终列顺序：序号列 → 树形列 → 其他列
-      return [indexColumn, ...this.columns]
-    },
-    rowSelection() {
-      return {
-        onChange: (selectedRowKeys, selectedRows) => {
-          const tag = this
-          tag.selectedRowKeys = selectedRowKeys
-          tag.selectedRows = selectedRows
-        },
-        getCheckboxProps: (record) => ({
-          props: {
-            disabled: record.approvalStatus !== null && record.approvalStatus !== '0' && record.approvalStatus !== '1' // 禁用
-            // name: record.name
-          }
-        })
-      }
-    }
-  },
-  mounted() {
-    this.handleSave = this.debounce(this.handleSave, 500) // 防抖处理
-    this.tableHeight = document.body.offsetHeight - 255
-    window.onresize = () => {
-      this.tableHeight = document.body.offsetHeight - 255
-    }
-    // 修复：确保在访问 $children 之前检查组件是否已挂载
-    this.$nextTick(() => {
-      if (this.$refs.table && this.$refs.table.$children) {
-        this.initTable()
-      }
+    const queryForm = reactive({
+      organId: window.localStorage.getItem('organId') || '',
+      projectName: undefined,
+      organFULLId: undefined,
+      orgForm: undefined,
+      id: null,
+      businessType: null,
+      organ: null,
+      documentCode: null,
+      documentName: null,
+      approvalStatus: '',
+      handlerName: null,
+      startCreateTime: null,
+      endCreateTime: null,
+      createTime: null
     })
-    // this.initParentIndexMap()
-    // this.tableData = tableData
-  },
-  watch: {
-    // 监听路由变化，当从编辑页返回时触发
-    $route(to, from) {
-      // 如果是从编辑页返回，并且有刷新参数
-      if (to.name === 'AssetManagementList' && from.name && from.name.includes('Asset')) {
-        this.handleRefreshFromEdit()
+
+    const pagination = reactive({
+      current: 1,
+      size: 10,
+      total: 0
+    })
+
+    const addMenuList = [
+      { label: '资产登记', value: 'registration', path: '/assetManagement/assetRegistration' },
+      { label: '资产改造', value: 'reform', path: '/assetManagement/assetReform' },
+      { label: '资产转让', value: 'transfer', path: '/assetManagement/assetTransfer' },
+      { label: '资产报废', value: 'scrap', path: '/assetManagement/assetScrap' },
+      { label: '资产报损', value: 'writeoff', path: '/assetManagement/assetWriteoff' },
+      { label: '资产处置', value: 'disposal', path: '/assetManagement/assetDisposal' }
+    ]
+
+    const formItemList = [
+      { label: '单据名称', value: 'documentName', disabled: false, type: 'string' },
+      { label: '业务类型', value: 'businessType', disabled: false, type: 'dict-select', dict: 'business_type' },
+      { label: '状态', value: 'approvalStatus', type: 'dict-select', dict: 'approve_status' },
+      { label: '编制日期', value: 'createTime', type: 'dateRangeForDate' }
+    ]
+
+    const tableDataList = ref([])
+    const selectedRows = ref([])
+    const selectedRowKeys = ref([])
+    const tableHeight = ref(document.body.offsetHeight - 400)
+    const detailData = ref({})
+    const clickType = ref('add')
+    const approveStatusList = ref([
+      { label: '待提交', value: '0' },
+      { label: '审批中', value: '1' },
+      { label: '已通过', value: '2' },
+      { label: '已驳回', value: '3' }
+    ])
+    const businessTypeList = ref([])
+
+    function getDictOptions(dictType) {
+      if (dictType === 'approve_status') return approveStatusList.value
+      if (dictType === 'business_type') return businessTypeList.value
+      return []
+    }
+
+    async function loadTableData() {
+      tableLoading.value = true
+      try {
+        const params = { ...queryForm, current: pagination.current, size: pagination.size }
+        if (params.createTime && Array.isArray(params.createTime) && params.createTime.length > 0) {
+          params.startCreateTime = `${params.createTime[0]} 00:00:00`
+          params.endCreateTime = `${params.createTime[1]} 23:59:59`
+          delete params.createTime
+        }
+        const res = await getassetManagementGetPage(params)
+        if (res.data) {
+          tableDataList.value = res.data.records || []
+          pagination.total = res.data.total || 0
+        }
+      } catch (error) {
+        console.error('加载数据失败:', error)
+        ElMessage.error('加载数据失败')
+      } finally {
+        tableLoading.value = false
       }
     }
-  },
-  methods: {
-    // 处理从编辑页返回的刷新
-    handleRefreshFromEdit() {
-      // this.queryTable()
-      // this.$refs.table.refresh(true)
-      this.$refs.table?.refresh(true)
-      //  this.$message.success('数据已刷新')
-    },
-    // 检查并刷新表格
-    checkAndRefresh() {
-      const query = this.$route.query
-      // 如果有刷新标志或者有来源标志
-      if (query.refresh || query.from === 'edit') {
-        // 延迟一点刷新，确保DOM已更新
-        this.$nextTick(() => {
-          this.queryTable()
-        })
-      }
-    },
-    // 初始化父行索引（确保序号从1开始连续）
-    initParentIndexMap() {
-      this.parentIndexMap.clear()
-      if (this.tableList.length > 0) {
-        this.tableList.forEach((record, index) => {
-          if (record.isParent && record.isMultiple) {
-            this.parentIndexMap.set(record.businessPlanId, this.parentIndexMap.size - 1)
-          }
-        })
-      }
-    },
-    // 导出
-    async handleExport() {
-      const pagination = this.$refs.table.localPagination || {}
-      const params = {
-        ...this.queryForm,
-        current: pagination.current,
-        size: pagination.pageSize
-      }
-      const res = await assetManagementExport(params)
-      const blob = new Blob([res.res], { type: 'application/vnd.ms-excel' })
-      const downloadUrl = window.URL.createObjectURL(blob)
-      const link = document.createElement('a')
-      link.href = downloadUrl
-      link.download = res.fileName
-      document.body.appendChild(link)
-      link.click()
-      document.body.removeChild(link)
-      window.URL.revokeObjectURL(downloadUrl)
-    },
 
-    // 防抖处理
-    debounce,
-    async handleExpand(expanded, record) {
-      if (expanded) {
-        this.expandedRowKeys.push(record.id)
-        // 避免重复加载：如果已有子节点，直接返回
-        if (record.children && record.children.length > 0) {
-          return Promise.resolve()
-        }
-        // 展开行
-        // 模拟根据父节点key获取子节点数据
-        const childData = await getSelectHistoryList({ businessPlanId: record.businessPlanId })
-        // 更新当前行的children字段（核心：将子节点数据挂载到父节点）
-        const arrData = childData.data.map((item) => {
-          return {
-            ...item,
-            id: item.id + 'a'
-          }
-          // item.id = item.id + 'a'
-        })
-        this.$set(record, 'children', arrData)
-      } else {
-        // 收缩行
-        this.expandedRowKeys = this.expandedRowKeys.filter((item) => item !== record.id)
-      }
-      this.$forceUpdate()
-    },
-    /**
-     * 动态加载子节点的核心方法
-     * @param {Object} row - 当前点击展开的行数据
-     * @returns {Promise} - 返回Promise确保加载完成后更新视图
-     */
-    async handleLoadData(row) {
-      // 避免重复加载：如果已有子节点，直接返回
-      if (row.children && row.children.length > 0) {
-        return Promise.resolve()
-      }
+    function handleOrganChange(val) {
+      queryForm.organId = val || window.localStorage.getItem('organId')
+      loadTableData()
+    }
 
-      // 模拟根据父节点key获取子节点数据
-      const childData = await getSelectHistoryList(row.key)
+    function searchTable() {
+      selectedRowKeys.value = []
+      selectedRows.value = []
+      pagination.current = 1
+      loadTableData()
+    }
 
-      // 更新当前行的children字段（核心：将子节点数据挂载到父节点）
-      this.$set(row, 'children', childData)
-
-      // 更新isLeaf：如果子节点为空，标记为叶子节点（不再显示展开按钮）
-      this.$set(row, 'isParent', childData.length === 0)
-
-      resolve()
-    },
-    // 高级搜索
-    upOrDownMore(val) {
-      if (val === true) {
-        this.$nextTick(() => {
-          this.tableHeight = document.body.offsetHeight - 355
-          this.$nextTick(() => {
-            this.$refs.table.resizeTable()
-          })
-        })
-      } else {
-        this.$nextTick(() => {
-          this.tableHeight = document.body.offsetHeight - 255
-          this.$nextTick(() => {
-            this.$refs.table.resizeTable()
-          })
-        })
-      }
-    },
-    resetTable() {
-      this.queryForm = {
-        organId: window.localStorage.getItem('organId'),
+    function resetTable() {
+      Object.assign(queryForm, {
+        organId: window.localStorage.getItem('organId') || '',
         projectName: undefined,
         current: 1,
         size: 10,
-        startPage: 1,
-        endPage: 10
-      }
-      this.$refs.table.refresh(true)
-    },
-    // searchTable(obj) {
-    //   this.$refs.table.refresh(true)
-    // },
-    //重置的时候 是 this.$refs.table.refresh(true)
-    // 搜素的时候 是 this.$refs.table.refresh(false)
-    searchTable() {
-      this.selectedRowKeys = []
-      this.selectedRows = []
-      this.expandedRowKeys = []
-      this.$refs.table.refresh(false)
-    },
-    // 自定义列设置后的数据，可自行存储设置
-    onCustomColChange(arr) {
-      // this.columns = this.columns
-      arr.forEach((item) => {
-        this.updateWidthColumns.forEach((item2) => {
-          if (item.dataIndex === item2.dataIndex) {
-            item.width = item2.width
-          }
-        })
+        documentCode: null,
+        documentName: null,
+        businessType: null,
+        organ: null,
+        approvalStatus: '',
+        handlerName: null,
+        createTime: null
       })
-      this.columns = arr
-      this.$forceUpdate()
-    },
-    // 调整列宽-回调
-    colunmWidthChange(width, col) {
-      this.columns.forEach((item) => {
-        if (item.dataIndex === col.dataIndex) {
-          item.width = width
-        }
-      })
-      this.updateWidthColumns = this.columns
-    },
+      pagination.current = 1
+      loadTableData()
+    }
 
-    // 删除
-    handleDelete(record) {
+    function handleSizeChange(val) {
+      pagination.size = val
+      pagination.current = 1
+      loadTableData()
+    }
+
+    function handleCurrentChange(val) {
+      pagination.current = val
+      loadTableData()
+    }
+
+    function handleSelectionChange(rows) {
+      selectedRows.value = rows
+      selectedRowKeys.value = rows.map((row) => row.id)
+    }
+
+    function handleRowClick() {}
+
+    async function handleExport() {
+      try {
+        const params = { ...queryForm, current: pagination.current, size: pagination.size }
+        const res = await assetManagementExport(params)
+        const blob = new Blob([res.res], { type: 'application/vnd.ms-excel' })
+        const downloadUrl = window.URL.createObjectURL(blob)
+        const link = document.createElement('a')
+        link.href = downloadUrl
+        link.download = res.fileName || 'export.xlsx'
+        document.body.appendChild(link)
+        link.click()
+        document.body.removeChild(link)
+        window.URL.revokeObjectURL(downloadUrl)
+        ElMessage.success('导出成功')
+      } catch (error) {
+        ElMessage.error('导出失败')
+      }
+    }
+
+    function handleDelete(record) {
       let deleteData = []
-      if (record.id && record.businessType) {
-        // 检查单条记录的审批状态
+      if (record?.id && record?.businessType) {
         if (record.approvalStatus !== '0' && record.approvalStatus !== '1') {
-          this.$message.error('不能删除审批完成的资产')
+          ElMessage.error('不能删除审批完成的资产')
           return
         }
-        deleteData = [
-          {
-            id: record.id,
-            businessType: record.businessType
-          }
-        ]
+        deleteData = [{ id: record.id, businessType: record.businessType }]
       } else {
-        if (this.selectedRows.length === 0) {
-          this.$message.info('请选择数据')
+        if (selectedRows.value.length === 0) {
+          ElMessage.info('请选择数据')
           return
         }
-        // 检查批量删除的记录中是否有已审批完成的
-        const hasApprovedRecord = this.selectedRows.some(
+        const hasApprovedRecord = selectedRows.value.some(
           (item) => item.approvalStatus !== '0' && item.approvalStatus !== '1'
         )
-
         if (hasApprovedRecord) {
-          this.$message.error('不能删除审批完成的资产')
+          ElMessage.error('不能删除审批完成的资产')
           return
         }
-        deleteData = this.selectedRows
+        deleteData = selectedRows.value
           .filter((item) => item.id && item.businessType)
-          .map((item) => ({
-            id: item.id,
-            businessType: item.businessType
-          }))
+          .map((item) => ({ id: item.id, businessType: item.businessType }))
       }
-      const that = this
-      this.$confirm({
-        title: '是否删除选中项目',
-        onOk() {
-          assetManagementBatchDeleteValue(deleteData)
-            .then((res) => {
-              that.$refs.table.selectedRows = []
-              that.$refs.table.selectedRowKeys = []
-              that.$refs.table.refresh(true)
-              res && that.$message.success('删除成功')
-            })
-            .catch((err) => {
-              that.$message.error(err.data.message)
-            })
-        },
-        onCancel() {
-          that.$message.info('取消')
-        },
-        class: 'test'
+
+      ElMessageBox.confirm('是否删除选中项目？', '提示', {
+        confirmButtonText: '确定',
+        cancelButtonText: '取消',
+        type: 'warning'
       })
-    },
-    // 重置刷新表
-    queryTable() {
-      this.selectedRowKeys = []
-      this.selectedRows = []
-      this.$refs.table.selectedRows = []
-      this.$refs.table.selectedRowKeys = []
-      // this.$refs.table.refresh(true)
-    },
-    // 新增
-    handleAdd() {
-      this.clickType = 'add'
-      this.detailData = {}
-      this.isShowEditDetail = true
-    },
-    // 处理新增下拉菜单命令
-    handleAddMenuClick({ key }) {
-      const target = this.addMenuList.find((item) => item.value === key)
-      if (target && target.path) {
-        this.$router.push(target.path)
-      }
-    },
+        .then(async () => {
+          try {
+            await assetManagementBatchDeleteValue(deleteData)
+            selectedRows.value = []
+            selectedRowKeys.value = []
+            ElMessage.success('删除成功')
+            loadTableData()
+          } catch (error) {
+            ElMessage.error(error.message || '删除失败')
+          }
+        })
+        .catch(() => {
+          ElMessage.info('已取消删除')
+        })
+    }
 
-    toDetail(type, record) {
-      this.clickType = type
-      this.detailData = record
-      this.getAssetListById = record.id
-      // this.isShowEditDetail = true
-      //     if (record.isMultiple || !record.isParent) {
-      //   // 计划详情-删除/作废：区分操作类型 0是新增作废 1是变更作废
-      //       this.detailData.changeType = 1
-      //     } else {
-      //       this.detailData.changeType = 0
-      //     }
-      //     if (type === 'look') {
-      //       this.isShowLookDetail = true
-      //     } else {
-      //       this.isShowEditDetail = true
-      this.handleBusinessTypeRedirect(record)
-      // }
-    },
-    handleBusinessTypeRedirect(record) {
-      this.isFromListNameClick = false // 标记来源为编辑按钮
-      this.clickType = 'edit' // 设置为编辑模式
-      this.detailData = record
+    function handleAddMenuClick(command) {
+      const target = addMenuList.find((item) => item.value === command)
+      if (target && target.path) router.push(target.path)
+    }
+
+    function toDetail(type, record) {
+      clickType.value = type
+      detailData.value = record
+      handleBusinessTypeRedirect(record)
+    }
+
+    function handleBusinessTypeRedirect(record) {
+      clickType.value = 'edit'
+      detailData.value = record
       const businessType = record.businessType
-      //  根据业务类型跳转到对应页面
-      if (businessType === 'ZCDJ') {
-        // 跳转到资产登记页面
-        this.$router.push({
-          path: '/assetManagement/assetRegistration', // 路由名称
-
-          query: {
-            businessType: 'ZCDJ',
-            from: 'list',
-            id: record.id,
-            type: 'edit'
-          }
-        })
-      } else if (businessType === 'ZCCZ') {
-        // 跳转到资产处置页面
-        this.$router.push({
-          path: '/assetManagement/assetDisposal',
-          query: {
-            businessType: 'ZCCZ',
-            from: 'list',
-            id: record.id,
-            type: 'edit'
-          }
-        })
-      } else if (businessType === 'ZCGZ') {
-        // 跳转到资产改造页面
-        this.$router.push({
-          path: '/assetManagement/assetReform',
-          query: {
-            businessType: 'ZCGZ',
-            from: 'list',
-            id: record.id,
-            type: 'edit'
-          }
-        })
-      } else if (businessType === 'ZCZR') {
-        // 跳转到资产转让页面
-        this.$router.push({
-          path: '/assetManagement/assetTransfer',
-          query: {
-            businessType: 'ZCZR',
-            from: 'list',
-            id: record.id,
-            type: 'edit'
-          }
-        })
-      } else if (businessType === 'ZCBS') {
-        // 跳转到资产报损页面
-        this.$router.push({
-          path: '/assetManagement/assetWriteoff',
-          query: {
-            businessType: 'ZCBS',
-            from: 'list',
-            id: record.id,
-            type: 'edit'
-          }
-        })
-      } else if (businessType === 'ZCBF') {
-        // 跳转到资产报废页面
-        this.$router.push({
-          path: '/assetManagement/assetScrap',
-          query: {
-            businessType: 'ZCBF',
-            from: 'list',
-            id: record.id,
-            type: 'edit'
-          }
+      const routeMap = {
+        ZCDJ: '/assetManagement/assetRegistration',
+        ZCCZ: '/assetManagement/assetDisposal',
+        ZCGZ: '/assetManagement/assetReform',
+        ZCZR: '/assetManagement/assetTransfer',
+        ZCBS: '/assetManagement/assetWriteoff',
+        ZCBF: '/assetManagement/assetScrap'
+      }
+      const path = routeMap[businessType]
+      if (path) {
+        router.push({
+          path,
+          query: { businessType, from: 'list', id: record.id, type: 'edit' }
         })
       }
-    },
-    handleNameClick(record) {
-      this.isFromListNameClick = true // 标记来源
-      this.clickType = 'look' // 设置为查看模式
-      this.detailData = record
+    }
+
+    function handleNameClick(record) {
+      clickType.value = 'look'
+      detailData.value = record
       const businessType = record.businessType
-      // 根据业务类型跳转到对应页面
-      if (businessType === 'ZCDJ') {
-        // 跳转到资产登记页面
-        this.$router.push({
-          path: '/assetManagement/assetRegistration',
-          query: {
-            businessType: 'ZCDJ',
-            from: 'list',
-            id: record.id,
-            type: 'look'
-          }
-        })
-      } else if (businessType === 'ZCCZ') {
-        // 跳转到资产处置页面
-        this.$router.push({
-          path: '/assetManagement/assetDisposal',
-          query: {
-            businessType: 'ZCCZ',
-            from: 'list',
-            id: record.id,
-            type: 'look'
-          }
-        })
-      } else if (businessType === 'ZCGZ') {
-        // 跳转到资产改造页面
-        this.$router.push({
-          path: '/assetManagement/assetReform',
-          query: {
-            businessType: 'ZCGZ',
-            from: 'list',
-            id: record.id,
-            type: 'look'
-          }
-        })
-      } else if (businessType === 'ZCZR') {
-        // 跳转到资产转让页面
-        this.$router.push({
-          path: '/assetManagement/assetTransfer',
-          query: {
-            businessType: 'ZCZR',
-            from: 'list',
-            id: record.id,
-            type: 'look'
-          }
-        })
-      } else if (businessType === 'ZCBS') {
-        // 跳转到资产报损页面
-        this.$router.push({
-          path: '/assetManagement/assetWriteoff',
-          query: {
-            businessType: 'ZCBS',
-            from: 'list',
-            id: record.id,
-            type: 'look'
-          }
-        })
-      } else if (businessType === 'ZCBF') {
-        // 跳转到资产报废页面
-        this.$router.push({
-          path: '/assetManagement/assetScrap',
-          query: {
-            businessType: 'ZCBF',
-            from: 'list',
-            id: record.id,
-            type: 'look'
-          }
+      const routeMap = {
+        ZCDJ: '/assetManagement/assetRegistration',
+        ZCCZ: '/assetManagement/assetDisposal',
+        ZCGZ: '/assetManagement/assetReform',
+        ZCZR: '/assetManagement/assetTransfer',
+        ZCBS: '/assetManagement/assetWriteoff',
+        ZCBF: '/assetManagement/assetScrap'
+      }
+      const path = routeMap[businessType]
+      if (path) {
+        router.push({
+          path,
+          query: { businessType, from: 'list', id: record.id, type: 'look' }
         })
       }
-    },
+    }
 
-    // 查看审批记录
-    viewApprovalRecords(record) {},
-    // 编辑返回
-    editDetailBack(val) {
-      this.detailData = {}
-      this.getAssetListById = ''
-      this.isShowEditDetail = false
-      if (val) this.resetTable()
-    },
-    // 详情返回
-    lookDetailBack() {
-      this.detailData = {}
-      this.isShowLookDetail = false
-    },
-    conversionTime
+    function handleResize() {
+      tableHeight.value = isShowMoreSearch.value ? document.body.offsetHeight - 500 : document.body.offsetHeight - 400
+    }
+
+    onMounted(() => {
+      loadTableData()
+      window.addEventListener('resize', debounce(handleResize, 300))
+    })
+
+    onBeforeUnmount(() => {
+      window.removeEventListener('resize', handleResize)
+    })
+
+    return {
+      tableRef,
+      ruleForm,
+      tableLoading,
+      isShowMoreSearch,
+      isShowEditDetail,
+      pageTitle,
+      queryForm,
+      pagination,
+      addMenuList,
+      formItemList,
+      tableDataList,
+      selectedRows,
+      selectedRowKeys,
+      tableHeight,
+      detailData,
+      clickType,
+      approveStatusList,
+      businessTypeList,
+      getDictOptions,
+      loadTableData,
+      handleOrganChange,
+      searchTable,
+      resetTable,
+      handleSizeChange,
+      handleCurrentChange,
+      handleSelectionChange,
+      handleRowClick,
+      handleExport,
+      handleDelete,
+      handleAddMenuClick,
+      toDetail,
+      handleBusinessTypeRedirect,
+      handleNameClick,
+      conversionTime
+    }
   }
 }
 </script>
-<style lang="less"></style>
+
+<style lang="less" scoped>
+.asset-management-page {
+  padding: 16px;
+  background-color: #f5f7fa;
+  min-height: 100vh;
+}
+
+.table-search-form {
+  margin-bottom: 16px;
+
+  :deep(.el-card__body) {
+    padding: 20px;
+  }
+}
+
+.table-block {
+  :deep(.el-card__header) {
+    padding: 16px 20px;
+    border-bottom: 1px solid #ebeef5;
+  }
+
+  :deep(.el-card__body) {
+    padding: 0;
+  }
+}
+
+.table-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+
+  .table-title {
+    font-size: 16px;
+    font-weight: 600;
+    color: #303133;
+  }
+
+  .table-actions {
+    display: flex;
+    gap: 8px;
+  }
+}
+
+.more-search-btn {
+  margin-left: 12px;
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.more-search-area {
+  margin-top: 16px;
+  padding-top: 16px;
+  border-top: 1px solid #ebeef5;
+  background-color: #fafafa;
+  padding: 16px;
+  border-radius: 4px;
+}
+
+.pagination-wrapper {
+  padding: 16px 20px;
+  display: flex;
+  justify-content: flex-end;
+  border-top: 1px solid #ebeef5;
+}
+</style>
