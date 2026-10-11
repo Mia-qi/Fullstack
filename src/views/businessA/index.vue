@@ -196,6 +196,7 @@
 import { ref, reactive, onMounted } from 'vue'
 import { useRouter, useRoute } from 'vue-router'
 import { ElMessage } from 'element-plus'
+import { saveAsset } from '@/api/assetManagement/assetManagementList' // 资产的API接口
 
 const router = useRouter()
 const route = useRoute()
@@ -288,9 +289,31 @@ function deleteTableRow(index) {
   tableData.value.splice(index, 1)
 }
 
-function handleSave() {
-  ElMessage.success('保存成功')
-  goBack()
+async function handleSave() {
+  // 表单验证
+  if (!formData.documentName) {
+    ElMessage.warning('请输入单据名称')
+    return
+  }
+  if (!formData.thirdUnit) {
+    ElMessage.warning('请选择所属三级单位')
+    return
+  }
+  if (!formData.assetRegistrationDate) {
+    ElMessage.warning('请选择资产登记日期')
+    return
+  }
+
+  try {
+    // 调用保存接口
+    await saveAsset(formData)
+    ElMessage.success('保存成功')
+    goBack()
+  } catch (error) {
+    ElMessage.error('保存失败：' + error.message)
+  }
+  // ElMessage.success('保存成功')
+  // goBack()
 }
 </script>
 

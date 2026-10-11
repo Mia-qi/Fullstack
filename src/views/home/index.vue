@@ -359,19 +359,20 @@ export default {
     async function handleExport() {
       try {
         const params = { ...queryForm, current: pagination.current, size: pagination.size }
-        const res = await assetManagementExport(params)
-        const blob = new Blob([res.res], { type: 'application/vnd.ms-excel' })
+        const response = await assetManagementExport(params)
+        const blob = new Blob([response], { type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' })
         const downloadUrl = window.URL.createObjectURL(blob)
         const link = document.createElement('a')
         link.href = downloadUrl
-        link.download = res.fileName || 'export.xlsx'
+        link.download = '资产管理数据.xlsx'
         document.body.appendChild(link)
         link.click()
         document.body.removeChild(link)
         window.URL.revokeObjectURL(downloadUrl)
         ElMessage.success('导出成功')
       } catch (error) {
-        ElMessage.error('导出失败')
+        console.error('导出失败:', error)
+        ElMessage.error('导出失败：' + (error.message || '未知错误'))
       }
     }
 

@@ -1,11 +1,26 @@
-export function getassetManagementGetPage() {
-  return Promise.resolve({ data: { records: [], total: 0 } })
+import request from '@/utils/request'
+
+export function getassetManagementGetPage(params) {
+  return request({
+    url: '/asset/page',
+    method: 'get',
+    params
+  })
 }
 
-export function assetManagementBatchDeleteValue() {
-  return Promise.resolve({ code: 200 })
+export function assetManagementBatchDeleteValue(data) {
+  return request({
+    url: '/asset/batchDelete',
+    method: 'post',
+    data
+  })
 }
 
-export function assetManagementExport() {
-  return Promise.resolve({ data: {} })
+export function assetManagementExport(params) {
+  return request({
+    url: '/asset/export',
+    method: 'post',
+    data: params,
+    responseType: 'blob'
+  })
 }
